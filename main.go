@@ -1,102 +1,130 @@
 package main
 
 import (
-	"embed"
 	"encoding/json"
 	"errors"
+	"flag"
+	"fmt"
 	"io"
-	"io/fs"
-	"log"
-	"net/http"
+	"os"
+	"strconv"
 	"strings"
+	"unicode/utf8"
+
+	tea "charm.land/bubbletea/v2"
 
 	"glowing-agent/simulator"
 )
 
-//go:embed static/*
-var staticFiles embed.FS
+const version = "0.3.0"
 
-type simulationRequest struct {
-	Task     string `json:"task"`
-	PresetID string `json:"presetId"`
-	Seed     *int64 `json:"seed"`
+type commandConfig struct {
+	json          bool
+	preset        string
+	seed          string
+	thinkingDepth string
+	version       bool
 }
 
 func main() {
-	server, err := newServer()
-	if err != nil {
-		log.Fatal(err)
+	if err := run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
 	}
-	log.Println("Glowing Agent is pretending to work at http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", server))
 }
 
-func newServer() (http.Handler, error) {
-	assets, err := fs.Sub(staticFiles, "static")
+func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	config, taskArgs, err := parseCommand(args, stderr)
 	if err != nil {
-		return nil, err
-	}
-
-	mux := http.NewServeMux()
-	mux.Handle("GET /", http.FileServer(http.FS(assets)))
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]string{"status": "delightfully simulated"})
-	})
-	mux.HandleFunc("POST /api/simulations", handleSimulation)
-	return mux, nil
-}
-
-func handleSimulation(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
-	var request simulationRequest
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&request); err != nil {
-		writeError(w, http.StatusBadRequest, "Send a valid JSON simulation request.")
-		return
-	}
-	if err := ensureSingleJSONValue(decoder); err != nil {
-		writeError(w, http.StatusBadRequest, "Send exactly one JSON object.")
-		return
-	}
-
-	task := strings.TrimSpace(request.Task)
-	if request.PresetID != "" {
-		preset, ok := simulator.PresetByID(request.PresetID)
-		if !ok {
-			writeError(w, http.StatusBadRequest, "That preset escaped the backlog.")
-			return
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
 		}
-		task = preset.Task
+		return err
 	}
-	if len(task) == 0 || len(task) > 1000 {
-		writeError(w, http.StatusBadRequest, "Task text must be between 1 and 1000 characters.")
-		return
+	if config.version {
+		_, err := fmt.Fprintf(stdout, "glowing-agent %s\n", version)
+		return err
 	}
-
-	result := simulator.Generate(task, request.Seed)
-	writeJSON(w, http.StatusOK, result)
+	if config.json {
+		return runJSON(config, taskArgs, stdin, stdout)
+	}
+	if config.preset != "" || config.seed != "" || config.thinkingDepth != "none" || len(taskArgs) > 0 {
+		return errors.New("task and simulation settings belong in the TUI; use --json for automation")
+	}
+	if !isTerminal(stdin) || !isTerminal(stdout) {
+		return errors.New("the TUI requires an interactive terminal; use --json for automation")
+	}
+	_, err = tea.NewProgram(newTUIModel(), tea.WithInput(stdin), tea.WithOutput(stdout)).Run()
+	return err
 }
 
-func ensureSingleJSONValue(decoder *json.Decoder) error {
-	var extra any
-	err := decoder.Decode(&extra)
-	if errors.Is(err, io.EOF) {
-		return nil
+func parseCommand(args []string, output io.Writer) (commandConfig, []string, error) {
+	config := commandConfig{thinkingDepth: "none"}
+	flags := flag.NewFlagSet("glowing-agent", flag.ContinueOnError)
+	flags.SetOutput(output)
+	flags.BoolVar(&config.json, "json", false, "write one simulation as JSON instead of starting the TUI")
+	flags.StringVar(&config.preset, "preset", "", "JSON mode: run a named preset")
+	flags.StringVar(&config.seed, "seed", "", "JSON mode: use a reproducible signed 64-bit seed")
+	flags.StringVar(&config.thinkingDepth, "thinking-depth", "none", "JSON mode: reasoning depth")
+	flags.BoolVar(&config.version, "version", false, "print the version")
+	flags.Usage = func() {
+		fmt.Fprintln(output, "Usage: glowing-agent [--json [JSON flags] [task...]]")
+		fmt.Fprintln(output, "")
+		fmt.Fprintln(output, "Start the full-screen glowing-agent TUI. Use --json only for scripting.")
+		fmt.Fprintln(output, "")
+		flags.PrintDefaults()
 	}
-	return errors.New("unexpected trailing JSON")
+	if err := flags.Parse(args); err != nil {
+		return commandConfig{}, nil, err
+	}
+	if !simulator.ValidThinkingDepth(config.thinkingDepth) {
+		return commandConfig{}, nil, fmt.Errorf("unknown thinking depth %q", config.thinkingDepth)
+	}
+	return config, flags.Args(), nil
 }
 
-func writeError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, map[string]string{"error": message})
+func runJSON(config commandConfig, taskArgs []string, stdin io.Reader, stdout io.Writer) error {
+	task, err := resolveJSONTask(taskArgs, config.preset, stdin)
+	if err != nil {
+		return err
+	}
+	if count := utf8.RuneCountInString(task); count == 0 || count > 1000 {
+		return errors.New("task text must be between 1 and 1000 characters")
+	}
+	var seed *int64
+	if config.seed != "" {
+		value, err := strconv.ParseInt(config.seed, 10, 64)
+		if err != nil {
+			return fmt.Errorf("--seed must be a signed 64-bit integer: %w", err)
+		}
+		seed = &value
+	}
+	return json.NewEncoder(stdout).Encode(simulator.GenerateWithThinkingDepth(task, seed, config.thinkingDepth))
 }
 
-func writeJSON(w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(value); err != nil {
-		log.Printf("write response: %v", err)
+func resolveJSONTask(taskArgs []string, presetID string, stdin io.Reader) (string, error) {
+	if len(taskArgs) > 0 {
+		return strings.TrimSpace(strings.Join(taskArgs, " ")), nil
 	}
+	if presetID != "" {
+		preset, ok := simulator.PresetByID(presetID)
+		if !ok {
+			return "", fmt.Errorf("unknown preset %q", presetID)
+		}
+		return preset.Task, nil
+	}
+	value, err := io.ReadAll(io.LimitReader(stdin, 4001))
+	if err != nil {
+		return "", fmt.Errorf("read task: %w", err)
+	}
+	return strings.TrimSpace(string(value)), nil
+}
+
+func isTerminal(value any) bool {
+	file, ok := value.(*os.File)
+	if !ok {
+		return false
+	}
+	info, err := file.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }

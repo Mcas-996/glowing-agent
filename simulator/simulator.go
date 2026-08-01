@@ -56,29 +56,54 @@ type Metrics struct {
 }
 
 type Simulation struct {
-	Task       string  `json:"task"`
-	Seed       int64   `json:"seed"`
-	Ending     string  `json:"ending"`
-	EndingName string  `json:"endingName"`
-	Events     []Event `json:"events"`
-	Metrics    Metrics `json:"metrics"`
-	Disclaimer string  `json:"disclaimer"`
+	Task          string  `json:"task"`
+	Seed          int64   `json:"seed"`
+	ThinkingDepth string  `json:"thinkingDepth"`
+	Ending        string  `json:"ending"`
+	EndingName    string  `json:"endingName"`
+	Events        []Event `json:"events"`
+	Metrics       Metrics `json:"metrics"`
+	Disclaimer    string  `json:"disclaimer"`
+}
+
+// ThinkingDepths contains the supported levels of theatrically expensive reasoning.
+var ThinkingDepths = []string{"none", "low", "medium", "high", "xhigh", "xxhigh", "max", "ultra", "extreme"}
+
+// ValidThinkingDepth reports whether depth is a supported reasoning level.
+func ValidThinkingDepth(depth string) bool {
+	for _, candidate := range ThinkingDepths {
+		if depth == candidate {
+			return true
+		}
+	}
+	return false
 }
 
 func Generate(task string, requestedSeed *int64) Simulation {
+	return GenerateWithThinkingDepth(task, requestedSeed, "none")
+}
+
+// GenerateWithThinkingDepth creates a deterministic simulation for a task, seed, and reasoning depth.
+func GenerateWithThinkingDepth(task string, requestedSeed *int64, thinkingDepth string) Simulation {
 	seed := time.Now().UnixNano()
 	if requestedSeed != nil {
 		seed = *requestedSeed
+	}
+	if !ValidThinkingDepth(thinkingDepth) {
+		thinkingDepth = "none"
 	}
 	rng := rand.New(rand.NewPCG(uint64(seed), uint64(seed>>1)^0x9e3779b97f4a7c15))
 	profile := classify(task)
 	ending := rng.IntN(3)
 	events := baseEvents(task, profile, rng)
 	endingID, endingName := appendEnding(&events, task, profile, ending, rng)
+	thinkingMultiplier := 1 << thinkingDepthLevel(thinkingDepth)
+	thinkingRNG := rand.New(rand.NewPCG(uint64(seed)^0xd1b54a32d192ed03, uint64(seed>>1)^0x94d049bb133111eb))
+	events = applyThinkingDepth(events, thinkingDepth, thinkingRNG)
 
 	return Simulation{
-		Task: task, Seed: seed, Ending: endingID, EndingName: endingName, Events: events,
-		Metrics:    Metrics{Confidence: 96 + rng.IntN(4), TokensBurned: 4200 + rng.IntN(9500), MeetingsAvoided: 1 + rng.IntN(8), FilesActuallySet: 0},
+		Task: task, Seed: seed, ThinkingDepth: thinkingDepth, Ending: endingID, EndingName: endingName, Events: events,
+		Metrics:    Metrics{Confidence: 96 + rng.IntN(4), TokensBurned: (4200 + rng.IntN(9500)) * thinkingMultiplier, MeetingsAvoided: 1 + rng.IntN(8), FilesActuallySet: 0},
 		Disclaimer: "Simulation only. No files were read, changed, or emotionally validated.",
 	}
 }
@@ -126,6 +151,71 @@ func appendEnding(events *[]Event, task string, p profile, ending int, rng *rand
 		)
 		return "accidental-win", "Accidental usefulness"
 	}
+}
+
+var thinkingPhrases = []string{
+	"The request appears small, but its assumptions may extend beyond the visible change.",
+	"Before acting, I should distinguish the stated requirement from the requirement it quietly implies.",
+	"The surrounding code may be correct for reasons that are no longer documented.",
+	"A quick fix is still a hypothesis until the system has had an opportunity to disagree.",
+	"The most relevant constraint may be the one that has not yet been named.",
+	"This behaviour deserves a second look from the perspective of the next maintainer.",
+	"The evidence is encouraging, though it has not yet earned the right to be conclusive.",
+	"A local change can carry a surprisingly non-local interpretation.",
+	"The implementation path is clear enough to be suspicious.",
+	"I should verify whether the apparent edge case is actually the common case in disguise.",
+	"The task may be asking for a code change while revealing a boundary in the product model.",
+	"It is worth separating what is observable from what merely feels architecturally significant.",
+	"A stable solution needs to preserve the intent that led to the current behaviour.",
+	"The safest next step is to make the implicit contract explicit in my reasoning.",
+	"The available context supports a direction, not yet a conclusion.",
+	"There may be a dependency here that only becomes visible when the simple path succeeds.",
+	"The shortest implementation is not always the smallest conceptual change.",
+	"I should account for the consequences that the happy path has politely omitted.",
+	"This is probably straightforward, which makes it an excellent place to inspect the premise.",
+	"The system is offering an answer; the remaining question is whether it is answering the right problem.",
+}
+
+func thinkingDepthLevel(depth string) int {
+	for level, candidate := range ThinkingDepths {
+		if depth == candidate {
+			return level
+		}
+	}
+	return 0
+}
+
+func applyThinkingDepth(events []Event, depth string, rng *rand.Rand) []Event {
+	multiplier := 1 << thinkingDepthLevel(depth)
+	for index := range events {
+		if events[index].Kind != "thought" {
+			continue
+		}
+		events[index].Text = generateThinkingPhrases(multiplier, rng)
+		events[index].DelayMS *= multiplier
+	}
+	return events
+}
+
+func generateThinkingPhrases(count int, rng *rand.Rand) string {
+	phrases := make([]string, 0, count)
+	previous := -1
+	for range count {
+		index := rng.IntN(len(thinkingPhrases) - boolToInt(previous >= 0))
+		if previous >= 0 && index >= previous {
+			index++
+		}
+		phrases = append(phrases, thinkingPhrases[index])
+		previous = index
+	}
+	return strings.Join(phrases, "\n")
+}
+
+func boolToInt(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
 }
 
 type profile struct {
