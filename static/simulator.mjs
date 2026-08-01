@@ -105,9 +105,14 @@ function normaliseThinkingDepth(depth) {
 function expandThought(text, multiplier) {
   if (multiplier === 1) return text;
 
+  const elaborations = [
+    'There may be a hidden assumption in the surrounding context.',
+    'The apparent simplicity is worth treating as a signal rather than a fact.',
+    'A careful solution should account for the consequences nobody has mentioned yet.',
+    'This seems related to a broader question about how the system understands itself.',
+  ];
   return Array.from({ length: multiplier }, (_, index) => {
-    const pass = index + 1;
-    return `[reflection ${pass}/${multiplier}] ${text} This conclusion deserves another pass through the same evidence.`;
+    return `${text} ${elaborations[index % elaborations.length]}`;
   }).join('\n');
 }
 
