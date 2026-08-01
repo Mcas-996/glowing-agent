@@ -3,7 +3,7 @@ import test from 'node:test';
 import { generateSimulation } from '../static/simulator.mjs';
 
 test('a task and seed always reproduce the same simulation', () => {
-  assert.deepEqual(generateSimulation('Fix the typo', 42), generateSimulation('Fix the typo', 42));
+  assert.deepEqual(generateSimulation('Fix the typo', 42, 'none', 1000), generateSimulation('Fix the typo', 42, 'none', 1000));
 });
 
 test('the simulator can produce every ending', () => {
@@ -16,13 +16,24 @@ test('the simulator can produce every ending', () => {
 
 test('higher thinking depths grow thought content and time exponentially', () => {
   const task = 'Fix the typo';
-  const none = generateSimulation(task, 42, 'none');
-  const low = generateSimulation(task, 42, 'low');
-  const high = generateSimulation(task, 42, 'high');
+  const none = generateSimulation(task, 42, 'none', 1000);
+  const low = generateSimulation(task, 42, 'low', 1000);
+  const high = generateSimulation(task, 42, 'high', 1000);
   const thoughtAt = (simulation, index) => simulation.events.filter((event) => event.kind === 'thought')[index];
 
   assert.equal(thoughtAt(low, 0).delayMs, thoughtAt(none, 0).delayMs * 2);
   assert.equal(thoughtAt(high, 0).delayMs, thoughtAt(none, 0).delayMs * 8);
   assert.equal(thoughtAt(high, 0).text.split('\n').length, 8);
   assert.equal(high.metrics.tokensBurned, none.metrics.tokensBurned * 8);
+});
+
+test('thinking phrases use the mixed seed without exposing reflection counters', () => {
+  const first = generateSimulation('Fix the typo', 42, 'high', 1000);
+  const second = generateSimulation('Fix the typo', 42, 'high', 2000);
+  const thoughts = first.events.filter((event) => event.kind === 'thought');
+
+  assert.notDeepEqual(first.events, second.events);
+  assert.equal(first.ending, second.ending);
+  assert.ok(thoughts.every((event) => !event.text.includes('[reflection')));
+  assert.ok(thoughts.every((event) => !/\b\d+\/\d+\b/.test(event.text)));
 });

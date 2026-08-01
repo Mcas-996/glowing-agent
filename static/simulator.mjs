@@ -97,26 +97,48 @@ function appendEnding(events, task, profile, ending, rng) {
 }
 
 const thinkingDepths = ['none', 'low', 'medium', 'high', 'xhigh', 'xxhigh', 'max', 'ultra', 'extreme'];
+const thinkingPhrases = [
+  'The request appears small, but its assumptions may extend beyond the visible change.',
+  'Before acting, I should distinguish the stated requirement from the requirement it quietly implies.',
+  'The surrounding code may be correct for reasons that are no longer documented.',
+  'A quick fix is still a hypothesis until the system has had an opportunity to disagree.',
+  'The most relevant constraint may be the one that has not yet been named.',
+  'This behaviour deserves a second look from the perspective of the next maintainer.',
+  'The evidence is encouraging, though it has not yet earned the right to be conclusive.',
+  'A local change can carry a surprisingly non-local interpretation.',
+  'The implementation path is clear enough to be suspicious.',
+  'I should verify whether the apparent edge case is actually the common case in disguise.',
+  'The task may be asking for a code change while revealing a boundary in the product model.',
+  'It is worth separating what is observable from what merely feels architecturally significant.',
+  'A stable solution needs to preserve the intent that led to the current behaviour.',
+  'The safest next step is to make the implicit contract explicit in my reasoning.',
+  'The available context supports a direction, not yet a conclusion.',
+  'There may be a dependency here that only becomes visible when the simple path succeeds.',
+  'The shortest implementation is not always the smallest conceptual change.',
+  'I should account for the consequences that the happy path has politely omitted.',
+  'This is probably straightforward, which makes it an excellent place to inspect the premise.',
+  'The system is offering an answer; the remaining question is whether it is answering the right problem.',
+];
 
 function normaliseThinkingDepth(depth) {
   return thinkingDepths.includes(depth) ? depth : 'none';
 }
 
-function expandThought(text, multiplier) {
-  if (multiplier === 1) return text;
+function generateThinkingPhrases(count, rng) {
+  const phrases = [];
+  let previousIndex = -1;
 
-  const elaborations = [
-    'There may be a hidden assumption in the surrounding context.',
-    'The apparent simplicity is worth treating as a signal rather than a fact.',
-    'A careful solution should account for the consequences nobody has mentioned yet.',
-    'This seems related to a broader question about how the system understands itself.',
-  ];
-  return Array.from({ length: multiplier }, (_, index) => {
-    return `${text} ${elaborations[index % elaborations.length]}`;
-  }).join('\n');
+  for (let index = 0; index < count; index += 1) {
+    let phraseIndex = rng.nextInt(thinkingPhrases.length - (previousIndex === -1 ? 0 : 1));
+    if (previousIndex !== -1 && phraseIndex >= previousIndex) phraseIndex += 1;
+    phrases.push(thinkingPhrases[phraseIndex]);
+    previousIndex = phraseIndex;
+  }
+
+  return phrases.join('\n');
 }
 
-function applyThinkingDepth(events, depth) {
+function applyThinkingDepth(events, depth, rng) {
   const level = thinkingDepths.indexOf(depth);
   const multiplier = 2 ** level;
 
@@ -124,13 +146,13 @@ function applyThinkingDepth(events, depth) {
     if (event.kind !== 'thought') return event;
     return {
       ...event,
-      text: expandThought(event.text, multiplier),
+      text: generateThinkingPhrases(multiplier, rng),
       delayMs: event.delayMs * multiplier,
     };
   });
 }
 
-export function generateSimulation(task, requestedSeed = null, requestedThinkingDepth = 'none') {
+export function generateSimulation(task, requestedSeed = null, requestedThinkingDepth = 'none', requestedThinkingTime = Date.now()) {
   const seed = requestedSeed ?? Date.now();
   const rng = new SeededRandom(seed);
   const profile = classify(task);
@@ -139,6 +161,7 @@ export function generateSimulation(task, requestedSeed = null, requestedThinking
   const [endingID, endingName] = appendEnding(events, task, profile, ending, rng);
   const thinkingDepth = normaliseThinkingDepth(requestedThinkingDepth);
   const thinkingMultiplier = 2 ** thinkingDepths.indexOf(thinkingDepth);
+  const thinkingRng = new SeededRandom(BigInt(seed) ^ BigInt(requestedThinkingTime));
 
   return {
     task,
@@ -146,7 +169,7 @@ export function generateSimulation(task, requestedSeed = null, requestedThinking
     thinkingDepth,
     ending: endingID,
     endingName,
-    events: applyThinkingDepth(events, thinkingDepth),
+    events: applyThinkingDepth(events, thinkingDepth, thinkingRng),
     metrics: {
       confidence: 96 + rng.nextInt(4),
       tokensBurned: (4200 + rng.nextInt(9500)) * thinkingMultiplier,

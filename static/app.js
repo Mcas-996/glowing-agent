@@ -34,7 +34,7 @@ run.addEventListener('click', async () => {
   if (!Number.isSafeInteger(requestedSeed) && requestedSeed !== null) { seed.setCustomValidity('Use a whole-number seed.'); seed.reportValidity(); return; }
   seed.setCustomValidity(''); run.disabled = true; run.firstChild.textContent = 'Consulting the void ';
   try {
-    const data = generateSimulation(text, requestedSeed, thinkingDepth.value);
+    const data = generateSimulation(text, requestedSeed, thinkingDepth.value, Date.now());
     simulation = data; seed.value = data.seed; await play(data);
   } catch (error) { terminal.innerHTML = `<div class="event reveal">Simulation failed: ${escapeHTML(error.message)}</div>`; }
   finally { run.disabled = false; run.firstChild.textContent = 'Run simulation '; replay.disabled = !simulation; }
