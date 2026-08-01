@@ -1,3 +1,5 @@
+import { generateSimulation } from './simulator.mjs';
+
 const $ = (selector) => document.querySelector(selector);
 const terminal = $('#terminal');
 const run = $('#run');
@@ -27,15 +29,11 @@ function markPreset() { document.querySelectorAll('.preset').forEach(b => b.clas
 run.addEventListener('click', async () => {
   const text = task.value.trim();
   if (!text) { task.focus(); return; }
-  const request = { task: text };
-  if (activePreset) request.presetId = activePreset;
-  if (seed.value.trim()) request.seed = Number(seed.value.trim());
-  if (!Number.isSafeInteger(request.seed) && seed.value.trim()) { seed.setCustomValidity('Use a whole-number seed.'); seed.reportValidity(); return; }
+  const requestedSeed = seed.value.trim() ? Number(seed.value.trim()) : null;
+  if (!Number.isSafeInteger(requestedSeed) && requestedSeed !== null) { seed.setCustomValidity('Use a whole-number seed.'); seed.reportValidity(); return; }
   seed.setCustomValidity(''); run.disabled = true; run.firstChild.textContent = 'Consulting the void ';
   try {
-    const response = await fetch('/api/simulations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request) });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'The simulation unionised.');
+    const data = generateSimulation(text, requestedSeed);
     simulation = data; seed.value = data.seed; await play(data);
   } catch (error) { terminal.innerHTML = `<div class="event reveal">Simulation failed: ${escapeHTML(error.message)}</div>`; }
   finally { run.disabled = false; run.firstChild.textContent = 'Run simulation '; replay.disabled = !simulation; }
