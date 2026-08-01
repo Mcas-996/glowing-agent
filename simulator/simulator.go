@@ -153,27 +153,17 @@ func appendEnding(events *[]Event, task string, p profile, ending int, rng *rand
 	}
 }
 
-var thinkingPhrases = []string{
-	"The request appears small, but its assumptions may extend beyond the visible change.",
-	"Before acting, I should distinguish the stated requirement from the requirement it quietly implies.",
-	"The surrounding code may be correct for reasons that are no longer documented.",
-	"A quick fix is still a hypothesis until the system has had an opportunity to disagree.",
-	"The most relevant constraint may be the one that has not yet been named.",
-	"This behaviour deserves a second look from the perspective of the next maintainer.",
-	"The evidence is encouraging, though it has not yet earned the right to be conclusive.",
-	"A local change can carry a surprisingly non-local interpretation.",
-	"The implementation path is clear enough to be suspicious.",
-	"I should verify whether the apparent edge case is actually the common case in disguise.",
-	"The task may be asking for a code change while revealing a boundary in the product model.",
-	"It is worth separating what is observable from what merely feels architecturally significant.",
-	"A stable solution needs to preserve the intent that led to the current behaviour.",
-	"The safest next step is to make the implicit contract explicit in my reasoning.",
-	"The available context supports a direction, not yet a conclusion.",
-	"There may be a dependency here that only becomes visible when the simple path succeeds.",
-	"The shortest implementation is not always the smallest conceptual change.",
-	"I should account for the consequences that the happy path has politely omitted.",
-	"This is probably straightforward, which makes it an excellent place to inspect the premise.",
-	"The system is offering an answer; the remaining question is whether it is answering the right problem.",
+// thinkingGrammar is a fixed seven-part reasoning sentence. Each segment has
+// thirteen alternatives, giving 13^7 (62,748,517) possible sentences. A seeded
+// RNG chooses one alternative from every segment, so the same seed is replayable.
+var thinkingGrammar = [][]string{
+	{"Given the available context,", "From the visible evidence,", "Before committing to the obvious fix,", "Although the request looks contained,", "At this point in the investigation,", "Treating the current result as provisional,", "Looking beyond the immediate symptom,", "While the task is still narrowly scoped,", "With the first signal now in hand,", "Before the implementation becomes momentum,", "Reading the request as a system boundary,", "Assuming the happy path is incomplete,", "Without mistaking speed for certainty,"},
+	{"the requested change", "the apparent defect", "the proposed implementation", "the surrounding behaviour", "the current assumption", "the first plausible answer", "the observed result", "the local code path", "the product expectation", "the existing contract", "the smallest patch", "the reported symptom", "the visible success case"},
+	{"may conceal an undocumented constraint", "could affect a dependency outside this file", "still needs a clearer success condition", "may be carrying historical intent", "could be an edge case in common clothing", "deserves a check against the product model", "has not yet ruled out a non-local consequence", "may be correct for a reason nobody recorded", "could be solving the wrong layer of the problem", "still leaves the failure mode unexplained", "may have a quieter compatibility requirement", "does not yet establish the root cause", "could turn a local fix into a broader behaviour change"},
+	{"so I should validate the smallest safe interpretation", "so I should separate observation from inference", "so I should confirm the actual contract", "so I should test the premise before changing code", "so I should trace the affected boundary", "so I should look for the dependency that the happy path omits", "so I should make the implicit assumption explicit", "so I should compare the symptom with the intended behaviour", "so I should inspect the narrowest reversible change", "so I should verify the common case as well as the edge case", "so I should ask what the result fails to prove", "so I should preserve intent rather than just output", "so I should turn the first answer into a testable hypothesis"},
+	{"by reading the relevant call path", "by checking the adjacent interface", "by comparing input, output, and expectation", "by tracing the data across its boundary", "by reviewing the nearest existing test", "by testing the behaviour that looks too obvious", "by identifying the owner of the invariant", "by examining what changes when the simple path succeeds", "by checking the assumption against a second source", "by following the state transition end to end", "by isolating the smallest observable difference", "by reviewing the compatibility surface", "by looking for the condition hidden by the current result"},
+	{"before treating the first plausible answer as complete", "before the patch gains more confidence than evidence", "before expanding the scope of the change", "before the implementation hardens an accidental behaviour", "before calling the outcome conclusive", "before a local success becomes a system regression", "before the shortest path becomes the default path", "before the next maintainer inherits an unstated rule", "before the diagnosis turns into momentum", "before the visible fix hides the original cause", "before an assumption becomes an interface", "before the apparent edge case becomes production traffic", "before the code change outruns the reasoning"},
+	{"so the implementation preserves the intended behaviour.", "so the next change has an explicit contract to follow.", "so the solution remains small in both code and meaning.", "so confidence follows evidence instead of narration.", "so the fix addresses the boundary rather than its symptom.", "so the system can disagree while the change is still cheap.", "so the behaviour remains understandable after this moment.", "so a passing result also answers the right question.", "so the smallest patch is genuinely the safest one.", "so the product model survives the implementation detail.", "so the final change is reversible and well explained.", "so the happy path does not define the whole contract.", "so the conclusion is earned rather than merely convenient."},
 }
 
 func thinkingDepthLevel(depth string) int {
@@ -199,23 +189,14 @@ func applyThinkingDepth(events []Event, depth string, rng *rand.Rand) []Event {
 
 func generateThinkingPhrases(count int, rng *rand.Rand) string {
 	phrases := make([]string, 0, count)
-	previous := -1
 	for range count {
-		index := rng.IntN(len(thinkingPhrases) - boolToInt(previous >= 0))
-		if previous >= 0 && index >= previous {
-			index++
+		parts := make([]string, len(thinkingGrammar))
+		for index, alternatives := range thinkingGrammar {
+			parts[index] = pick(rng, alternatives)
 		}
-		phrases = append(phrases, thinkingPhrases[index])
-		previous = index
+		phrases = append(phrases, strings.Join(parts, " "))
 	}
 	return strings.Join(phrases, "\n")
-}
-
-func boolToInt(value bool) int {
-	if value {
-		return 1
-	}
-	return 0
 }
 
 type profile struct {

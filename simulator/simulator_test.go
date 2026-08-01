@@ -68,6 +68,17 @@ func TestThinkingDepthIsDeterministic(t *testing.T) {
 	}
 }
 
+func TestThinkingGrammarHasSevenSegmentsWithThirteenChoicesEach(t *testing.T) {
+	if got, want := len(thinkingGrammar), 7; got != want {
+		t.Fatalf("grammar segment count = %d, want %d", got, want)
+	}
+	for index, alternatives := range thinkingGrammar {
+		if got, want := len(alternatives), 13; got != want {
+			t.Fatalf("grammar segment %d choice count = %d, want %d", index, got, want)
+		}
+	}
+}
+
 func TestValidThinkingDepth(t *testing.T) {
 	if !ValidThinkingDepth("ultra") || ValidThinkingDepth("deep") {
 		t.Fatal("unexpected thinking depth validation")
