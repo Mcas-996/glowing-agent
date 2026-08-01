@@ -8,7 +8,7 @@ header { display: flex; justify-content: space-between; align-items: center; }
 .badge { border: 1px solid #285b3b; color: #8cf1ad; border-radius: 999px; padding: 6px 10px; font: 700 10px ui-monospace, monospace; letter-spacing: .08em; }
 .badge i { display: inline-block; width: 6px; height: 6px; margin: 0 5px 1px 0; background: #8cf1ad; border-radius: 50%; box-shadow: 0 0 10px #8cf1ad; }
 .intro { padding: 76px 0 43px; max-width: 700px; }
-.eyebrow, .task-label, .metric-label, .seed-control, .speed-control { font: 700 11px ui-monospace, monospace; letter-spacing: .11em; color: #80a18d; }
+.eyebrow, .task-label, .metric-label, .seed-control, .thinking-depth-control, .speed-control { font: 700 11px ui-monospace, monospace; letter-spacing: .11em; color: #80a18d; }
 .eyebrow { margin: 0 0 13px; color: #8cf1ad; }
 h1 { font-size: clamp(39px, 7vw, 70px); line-height: .98; letter-spacing: -.065em; margin: 0; }
 .lede { font-size: 17px; max-width: 570px; color: #aebbb3; line-height: 1.55; margin: 24px 0 0; }
@@ -20,7 +20,7 @@ h1 { font-size: clamp(39px, 7vw, 70px); line-height: .98; letter-spacing: -.065e
 textarea { width: 100%; min-height: 86px; resize: vertical; padding: 13px; border: 1px solid #345541; outline: none; background: #080c0a; color: #e7f6eb; font: 14px/1.45 ui-monospace, monospace; }
 textarea:focus, input:focus, select:focus { border-color: #8cf1ad; box-shadow: 0 0 0 3px rgba(140,241,173,.12); }
 .run-row { display: flex; align-items: end; gap: 13px; margin-top: 14px; }
-.seed-control, .speed-control { display: grid; gap: 6px; }
+.seed-control, .thinking-depth-control, .speed-control { display: grid; gap: 6px; }
 input, select { width: 102px; min-height: 38px; background: #0b100d; border: 1px solid #345541; color: #ddf5e4; padding: 8px; font: 13px ui-monospace, monospace; outline: none; }
 select { width: 86px; }
 button { cursor: pointer; }

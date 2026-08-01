@@ -26,6 +26,19 @@
       <textarea id="task" maxlength="1000" placeholder="e.g. Fix the typo in the welcome message"></textarea>
       <div class="run-row">
         <label class="seed-control" for="seed">SEED <input id="seed" inputmode="numeric" placeholder="chaos"></label>
+        <label class="thinking-depth-control" for="thinking-depth">THINKING DEPTH
+          <select id="thinking-depth">
+            <option value="none">none</option>
+            <option value="low">low</option>
+            <option value="medium">medium</option>
+            <option value="high">high</option>
+            <option value="xhigh">xhigh</option>
+            <option value="xxhigh">xxhigh</option>
+            <option value="max">max</option>
+            <option value="ultra">ultra</option>
+            <option value="extreme">extreme</option>
+          </select>
+        </label>
         <label class="speed-control" for="speed">SPEED
           <select id="speed"><option value="1">normal</option><option value=".45">fast</option><option value=".18">turbo</option></select>
         </label>
