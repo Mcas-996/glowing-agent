@@ -6,6 +6,7 @@ const run = $('#run');
 const replay = $('#replay');
 const task = $('#task');
 const seed = $('#seed');
+const thinkingDepth = $('#thinking-depth');
 const speed = $('#speed');
 let simulation = null;
 let activePreset = null;
@@ -33,7 +34,7 @@ run.addEventListener('click', async () => {
   if (!Number.isSafeInteger(requestedSeed) && requestedSeed !== null) { seed.setCustomValidity('Use a whole-number seed.'); seed.reportValidity(); return; }
   seed.setCustomValidity(''); run.disabled = true; run.firstChild.textContent = 'Consulting the void ';
   try {
-    const data = generateSimulation(text, requestedSeed);
+    const data = generateSimulation(text, requestedSeed, thinkingDepth.value);
     simulation = data; seed.value = data.seed; await play(data);
   } catch (error) { terminal.innerHTML = `<div class="event reveal">Simulation failed: ${escapeHTML(error.message)}</div>`; }
   finally { run.disabled = false; run.firstChild.textContent = 'Run simulation '; replay.disabled = !simulation; }

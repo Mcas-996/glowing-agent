@@ -96,23 +96,55 @@ function appendEnding(events, task, profile, ending, rng) {
   }
 }
 
-export function generateSimulation(task, requestedSeed = null) {
+const thinkingDepths = ['none', 'low', 'medium', 'high', 'xhigh', 'xxhigh', 'max', 'ultra', 'extreme'];
+
+function normaliseThinkingDepth(depth) {
+  return thinkingDepths.includes(depth) ? depth : 'none';
+}
+
+function expandThought(text, multiplier) {
+  if (multiplier === 1) return text;
+
+  return Array.from({ length: multiplier }, (_, index) => {
+    const pass = index + 1;
+    return `[reflection ${pass}/${multiplier}] ${text} This conclusion deserves another pass through the same evidence.`;
+  }).join('\n');
+}
+
+function applyThinkingDepth(events, depth) {
+  const level = thinkingDepths.indexOf(depth);
+  const multiplier = 2 ** level;
+
+  return events.map((event) => {
+    if (event.kind !== 'thought') return event;
+    return {
+      ...event,
+      text: expandThought(event.text, multiplier),
+      delayMs: event.delayMs * multiplier,
+    };
+  });
+}
+
+export function generateSimulation(task, requestedSeed = null, requestedThinkingDepth = 'none') {
   const seed = requestedSeed ?? Date.now();
   const rng = new SeededRandom(seed);
   const profile = classify(task);
   const ending = rng.nextInt(3);
   const events = baseEvents(task, profile, rng);
   const [endingID, endingName] = appendEnding(events, task, profile, ending, rng);
+  const thinkingDepth = normaliseThinkingDepth(requestedThinkingDepth);
+  const thinkingMultiplier = 2 ** thinkingDepths.indexOf(thinkingDepth);
 
   return {
     task,
     seed,
+    thinkingDepth,
     ending: endingID,
     endingName,
-    events,
+    events: applyThinkingDepth(events, thinkingDepth),
     metrics: {
       confidence: 96 + rng.nextInt(4),
-      tokensBurned: 4200 + rng.nextInt(9500),
+      tokensBurned: (4200 + rng.nextInt(9500)) * thinkingMultiplier,
       meetingsAvoided: 1 + rng.nextInt(8),
       filesActuallySet: 0,
     },
