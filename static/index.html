@@ -9,22 +9,37 @@
 </head>
 <body>
   <main class="shell">
-    <header>
-      <a class="wordmark" href="./">glowing<span>-agent</span></a>
-      <div class="badge"><i></i> SIMULATION MODE</div>
-    </header>
+    <section class="workspace" aria-label="Agent session">
+      <div class="session-head"><span>AGENT SESSION</span><i aria-hidden="true"></i><strong>READY</strong></div>
 
-    <section class="intro">
-      <p class="eyebrow">AUTONOMY WITHOUT ACCOUNTABILITY</p>
-      <h1>Your most confident<br>non-coding agent.</h1>
-      <p class="lede">Give it a tiny task. It will spend thousands of imaginary tokens discovering why the task is really about civilisation.</p>
+      <div class="terminal" id="terminal" aria-live="polite">
+        <div class="empty-state">Waiting for an opportunity to overthink.</div>
+      </div>
+
+      <section class="composer" aria-label="Task composer">
+        <label class="sr-only" for="task">Task for the agent</label>
+        <textarea id="task" maxlength="1000" placeholder="Tell me more about this project..."></textarea>
+        <button id="run" type="button" aria-label="Run simulation">Run <span>↗</span></button>
+      </section>
+
+      <footer>tab focus · enter run · shift+enter newline · replay in sidebar</footer>
     </section>
 
-    <section class="controls" aria-label="Simulation controls">
-      <div class="preset-row" id="presets"></div>
-      <label class="task-label" for="task">TASK FOR THE AGENT</label>
-      <textarea id="task" maxlength="1000" placeholder="e.g. Fix the typo in the welcome message"></textarea>
-      <div class="run-row">
+    <aside class="sidebar" aria-label="Session details">
+      <header>
+        <a class="wordmark" href="./">glowing<span>-agent</span></a>
+        <div class="badge"><i aria-hidden="true"></i> SIMULATION</div>
+      </header>
+
+      <div class="session-intro">
+        <strong>New Session</strong>
+        <span>./glowing-agent</span>
+      </div>
+
+      <section class="controls" aria-label="Simulation controls">
+        <h2>RUN SETTINGS</h2>
+        <div class="preset-row" id="presets"></div>
+        <div class="run-row">
         <label class="seed-control" for="seed">SEED <input id="seed" inputmode="numeric" placeholder="chaos"></label>
         <label class="thinking-depth-control" for="thinking-depth">THINKING DEPTH
           <select id="thinking-depth">
@@ -42,26 +57,24 @@
         <label class="speed-control" for="speed">SPEED
           <select id="speed"><option value="1">normal</option><option value=".45">fast</option><option value=".18">turbo</option></select>
         </label>
-        <button id="run" type="button">Run simulation <span>↗</span></button>
-      </div>
-      <p class="hint">Same task + seed = same incident report. The reasoning still has a moment of its own.</p>
-    </section>
+        </div>
+        <p class="hint">Same task + seed = same incident.</p>
+      </section>
 
-    <section class="terminal-wrap" aria-live="polite">
-      <div class="terminal-head"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span>agent-session.log</span><button id="replay" type="button" disabled>replay</button></div>
-      <div class="terminal" id="terminal">
-        <div class="empty-state">Waiting for an opportunity to overthink.</div>
-      </div>
-    </section>
+      <section class="session-details">
+        <div class="section-title"><span>SESSION</span></div>
+        <button id="replay" type="button" disabled>↻ replay</button>
+        <p class="modified-label">Modified Files</p>
+        <p class="none">None</p>
+      </section>
 
-    <section id="result" class="result hidden">
-      <div><span class="metric-label">ENDING</span><strong id="ending"></strong></div>
-      <div><span class="metric-label">CONFIDENCE</span><strong id="confidence"></strong></div>
-      <div><span class="metric-label">TOKENS BURNED</span><strong id="tokens"></strong></div>
-      <div><span class="metric-label">FILES ACTUALLY CHANGED</span><strong id="files"></strong></div>
-    </section>
-
-    <footer>glowing-agent does not execute tools. It only executes vibes.</footer>
+      <section id="result" class="result hidden">
+        <div><span class="metric-label">ENDING</span><strong id="ending"></strong></div>
+        <div><span class="metric-label">CONFIDENCE</span><strong id="confidence"></strong></div>
+        <div><span class="metric-label">TOKENS BURNED</span><strong id="tokens"></strong></div>
+        <div><span class="metric-label">FILES ACTUALLY CHANGED</span><strong id="files"></strong></div>
+      </section>
+    </aside>
   </main>
   <script type="module" src="./app.js"></script>
 </body>

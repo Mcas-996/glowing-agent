@@ -26,6 +26,14 @@ const (
 	completed
 )
 
+const (
+	minimumTerminalWidth  = 60
+	minimumTerminalHeight = 24
+	minimumLogHeight      = 5
+	sidebarBreakpoint     = 96
+	sidebarWidth          = 31
+)
+
 type focusTarget uint8
 
 const (
@@ -62,32 +70,74 @@ type tuiModel struct {
 var playbackSpeeds = []float64{0.5, 1, 2, 5}
 
 var (
-	titleStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#FFB000"))
-	mutedStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#7E8795"))
-	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF6B6B"))
-	panelStyle   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#4D6078")).Padding(0, 1)
-	focusStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#101820")).Background(lipgloss.Color("#56D4DD")).Padding(0, 1)
-	controlStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#C8D2DC")).Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#4D6078")).Padding(0, 1)
-	toolStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#63D8FF"))
-	thoughtStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#C5A3FF"))
-	planStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD166"))
-	finalStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#8CE99A"))
+	colorCanvas       = lipgloss.Color("#1D1922")
+	colorSurface      = lipgloss.Color("#292330")
+	colorBorder       = lipgloss.Color("#45394F")
+	colorText         = lipgloss.Color("#DED7E5")
+	colorMuted        = lipgloss.Color("#81768B")
+	colorSubtle       = lipgloss.Color("#A69AAD")
+	colorViolet       = lipgloss.Color("#7657FF")
+	colorPink         = lipgloss.Color("#ED5CFF")
+	colorMint         = lipgloss.Color("#39D98A")
+	colorWarning      = lipgloss.Color("#E9B86B")
+	colorError        = lipgloss.Color("#FF6B81")
+	titleStyle        = lipgloss.NewStyle().Bold(true).Foreground(colorViolet)
+	titleAccentStyle  = lipgloss.NewStyle().Bold(true).Foreground(colorPink)
+	diagonalStyle     = lipgloss.NewStyle().Foreground(colorViolet)
+	mutedStyle        = lipgloss.NewStyle().Foreground(colorMuted)
+	subtleStyle       = lipgloss.NewStyle().Foreground(colorSubtle)
+	errorStyle        = lipgloss.NewStyle().Foreground(colorError)
+	panelStyle        = lipgloss.NewStyle().Border(lipgloss.NormalBorder(), false, false, false, true).BorderForeground(colorBorder).PaddingLeft(1)
+	panelLabelStyle   = lipgloss.NewStyle().Bold(true).Foreground(colorPink)
+	focusStyle        = lipgloss.NewStyle().Bold(true).Foreground(colorText).Background(colorViolet).Padding(0, 1)
+	controlStyle      = lipgloss.NewStyle().Foreground(colorSubtle).Background(colorSurface).Padding(0, 1)
+	toolStyle         = lipgloss.NewStyle().Foreground(colorPink)
+	thoughtStyle      = lipgloss.NewStyle().Foreground(colorSubtle)
+	planStyle         = lipgloss.NewStyle().Foreground(colorViolet)
+	finalStyle        = lipgloss.NewStyle().Foreground(colorMint)
+	warningStyle      = lipgloss.NewStyle().Foreground(colorWarning)
+	statusReadyStyle  = lipgloss.NewStyle().Bold(true).Foreground(colorViolet)
+	statusActiveStyle = lipgloss.NewStyle().Bold(true).Foreground(colorMint)
+	statusPausedStyle = lipgloss.NewStyle().Bold(true).Foreground(colorWarning)
+	statusDoneStyle   = lipgloss.NewStyle().Bold(true).Foreground(colorPink)
+	sidebarStyle      = lipgloss.NewStyle().Border(lipgloss.NormalBorder(), false, false, false, true).BorderForeground(colorBorder).PaddingLeft(2)
+	promptFrameStyle  = lipgloss.NewStyle().Border(lipgloss.ThickBorder(), false, false, false, true).BorderForeground(colorViolet).PaddingLeft(1)
+	sectionStyle      = lipgloss.NewStyle().Foreground(colorMuted)
 )
 
 func newTUIModel() tuiModel {
 	task := textarea.New()
-	task.Prompt = "› "
+	task.Prompt = "> "
 	task.Placeholder = "e.g. Fix the typo in the welcome message"
 	task.CharLimit = 1000
 	task.MaxHeight = 5
+	task.ShowLineNumbers = false
 	task.KeyMap.InsertNewline.SetKeys("shift+enter")
 	task.SetHeight(4)
+	taskStyles := textarea.DefaultDarkStyles()
+	taskStyles.Focused.Base = taskStyles.Focused.Base.Background(colorCanvas)
+	taskStyles.Focused.Text = taskStyles.Focused.Text.Foreground(colorText)
+	taskStyles.Focused.Prompt = taskStyles.Focused.Prompt.Foreground(colorPink).Bold(true)
+	taskStyles.Focused.Placeholder = taskStyles.Focused.Placeholder.Foreground(colorMuted)
+	taskStyles.Blurred.Base = taskStyles.Blurred.Base.Background(colorCanvas)
+	taskStyles.Blurred.Text = taskStyles.Blurred.Text.Foreground(colorSubtle)
+	taskStyles.Blurred.Prompt = taskStyles.Blurred.Prompt.Foreground(colorViolet)
+	taskStyles.Blurred.Placeholder = taskStyles.Blurred.Placeholder.Foreground(colorMuted)
+	task.SetStyles(taskStyles)
 
 	seed := textinput.New()
-	seed.Prompt = "seed "
+	seed.Prompt = ""
 	seed.Placeholder = "chaos"
 	seed.CharLimit = 20
 	seed.Validate = validateSeedInput
+	seedStyles := textinput.DefaultDarkStyles()
+	seedStyles.Focused.Text = seedStyles.Focused.Text.Foreground(colorText)
+	seedStyles.Focused.Prompt = seedStyles.Focused.Prompt.Foreground(colorPink).Bold(true)
+	seedStyles.Focused.Placeholder = seedStyles.Focused.Placeholder.Foreground(colorMuted)
+	seedStyles.Blurred.Text = seedStyles.Blurred.Text.Foreground(colorSubtle)
+	seedStyles.Blurred.Prompt = seedStyles.Blurred.Prompt.Foreground(colorMuted)
+	seedStyles.Blurred.Placeholder = seedStyles.Blurred.Placeholder.Foreground(colorMuted)
+	seed.SetStyles(seedStyles)
 
 	logs := viewport.New(viewport.WithWidth(80), viewport.WithHeight(8))
 	logs.SoftWrap = true
@@ -168,8 +218,10 @@ func (m tuiModel) updateKey(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.shown = 0
 			m.runID++
 			m.simulation = nil
+			m.err = ""
 			m.presetIndex = -1
 			m.task.SetValue("")
+			m.resize()
 			m.refreshLog(false)
 			return m, m.setFocus(focusTask)
 		case "pgup", "up":
@@ -250,10 +302,12 @@ func (m *tuiModel) startSimulation() tea.Cmd {
 	task := strings.TrimSpace(m.task.Value())
 	if count := utf8.RuneCountInString(task); count == 0 || count > 1000 {
 		m.err = "Task text must be between 1 and 1000 characters."
+		m.resize()
 		return nil
 	}
 	if m.seed.Err != nil {
 		m.err = "Seed must be a signed 64-bit integer."
+		m.resize()
 		return nil
 	}
 	var seed *int64
@@ -261,6 +315,7 @@ func (m *tuiModel) startSimulation() tea.Cmd {
 		parsed, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			m.err = "Seed must be a signed 64-bit integer."
+			m.resize()
 			return nil
 		}
 		seed = &parsed
@@ -272,6 +327,7 @@ func (m *tuiModel) startSimulation() tea.Cmd {
 	m.shown = 0
 	m.runID++
 	m.err = ""
+	m.resize()
 	m.refreshLog(true)
 	return m.advance()
 }
@@ -300,16 +356,50 @@ func (m tuiModel) scheduleNext() tea.Cmd {
 }
 
 func (m *tuiModel) resize() {
-	if m.width < 60 || m.height < 16 {
+	if m.width < minimumTerminalWidth || m.height < minimumTerminalHeight {
 		return
 	}
-	inner := max(20, m.width-6)
+	mainWidth := m.mainWidth()
+	inner := max(20, mainWidth-3)
 	m.task.SetWidth(inner)
 	m.task.SetHeight(4)
-	m.seed.SetWidth(22)
+	seedWidth := 18
+	if !m.hasSidebar() && m.width < 80 {
+		seedWidth = 10
+	}
+	m.seed.SetWidth(seedWidth)
 	m.viewport.SetWidth(inner)
-	m.viewport.SetHeight(max(5, m.height-18))
+	m.viewport.SetHeight(max(minimumLogHeight, m.height-m.fixedHeight()-1))
 	m.refreshLog(false)
+}
+
+func (m tuiModel) fixedHeight() int {
+	content := []string{
+		m.sessionHeaderView(),
+		m.taskView(),
+	}
+	if !m.hasSidebar() {
+		content = append(content, m.settingsView())
+	}
+	if m.err != "" {
+		content = append(content, errorStyle.Render(m.err))
+	}
+	if m.simulation != nil && !m.hasSidebar() {
+		content = append(content, m.metricsView())
+	}
+	content = append(content, mutedStyle.Render(m.helpText()))
+	return lipgloss.Height(lipgloss.JoinVertical(lipgloss.Left, content...))
+}
+
+func (m tuiModel) hasSidebar() bool {
+	return m.width >= sidebarBreakpoint
+}
+
+func (m tuiModel) mainWidth() int {
+	if m.hasSidebar() {
+		return m.width - sidebarWidth
+	}
+	return m.width
 }
 
 func (m *tuiModel) refreshLog(follow bool) {
@@ -330,18 +420,24 @@ func (m *tuiModel) refreshLog(follow bool) {
 func formatEvent(event simulator.Event) string {
 	if event.Tool != nil {
 		output := "  " + strings.ReplaceAll(event.Tool.Output, "\n", "\n  ")
-		return toolStyle.Render("[tool] "+event.Tool.Name+" "+event.Tool.Input) + "\n" + mutedStyle.Render(output)
+		resultStyle := mutedStyle
+		if event.Tool.Status == "warning" {
+			resultStyle = warningStyle
+		}
+		return toolStyle.Render("▣ tool  "+event.Tool.Name) + " " + subtleStyle.Render(event.Tool.Input) + "\n" + resultStyle.Render(output)
 	}
-	prefix := "[" + event.Kind + "] "
 	switch event.Kind {
 	case "thought":
-		return thoughtStyle.Render(prefix + event.Text)
+		return thoughtStyle.Render("◌ reasoning  " + event.Text)
 	case "plan":
-		return planStyle.Render(prefix + event.Text)
+		return planStyle.Render("▸ plan       " + event.Text)
 	case "final good", "final bad", "reveal":
-		return finalStyle.Render(prefix + event.Text)
+		if event.Kind == "reveal" {
+			return warningStyle.Render("◇ reveal     " + event.Text)
+		}
+		return finalStyle.Render("◆ final      " + event.Text)
 	default:
-		return mutedStyle.Render(prefix + event.Text)
+		return mutedStyle.Render("· " + event.Kind + "  " + event.Text)
 	}
 }
 
@@ -349,44 +445,138 @@ func (m tuiModel) View() tea.View {
 	if m.width == 0 || m.height == 0 {
 		return tea.NewView("Loading glowing-agent…")
 	}
-	if m.width < 60 || m.height < 16 {
-		view := tea.NewView("glowing-agent\n\nPlease enlarge the terminal to at least 60 columns × 16 rows.\n\nctrl+c to quit")
+	if m.width < minimumTerminalWidth || m.height < minimumTerminalHeight {
+		view := tea.NewView(fmt.Sprintf("glowing-agent\n\nPlease enlarge the terminal to at least %d columns × %d rows.\n\nctrl+c to quit", minimumTerminalWidth, minimumTerminalHeight))
 		view.AltScreen = true
+		view.BackgroundColor = colorCanvas
+		view.ForegroundColor = colorText
 		view.WindowTitle = "glowing-agent"
 		return view
 	}
 
 	content := []string{
-		titleStyle.Render("glowing-agent") + "  " + mutedStyle.Render("SIMULATION MODE · "+m.statusText()),
-		panelStyle.Width(m.width - 4).Render("TASK\n" + m.task.View()),
-		m.settingsView(),
-		panelStyle.Width(m.width - 4).Render("AGENT SESSION LOG\n" + m.viewport.View()),
+		m.sessionHeaderView(),
+		m.viewport.View(),
+		m.taskView(),
+	}
+	if !m.hasSidebar() {
+		content = append(content, m.settingsView())
 	}
 	if m.err != "" {
 		content = append(content, errorStyle.Render(m.err))
 	}
-	if m.simulation != nil {
+	if m.simulation != nil && !m.hasSidebar() {
 		content = append(content, m.metricsView())
 	}
 	content = append(content, mutedStyle.Render(m.helpText()))
 
-	view := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, content...))
+	main := lipgloss.NewStyle().Width(m.mainWidth()).Render(lipgloss.JoinVertical(lipgloss.Left, content...))
+	canvas := main
+	if m.hasSidebar() {
+		canvas = lipgloss.JoinHorizontal(lipgloss.Top, main, m.sidebarView())
+	}
+	view := tea.NewView(canvas)
 	view.AltScreen = true
+	view.BackgroundColor = colorCanvas
+	view.ForegroundColor = colorText
 	view.WindowTitle = "glowing-agent"
 	return view
 }
 
-func (m tuiModel) settingsView() string {
-	presets := simulator.Presets()
-	preset := "custom"
+func (m tuiModel) sessionHeaderView() string {
+	return mutedStyle.Render("  AGENT SESSION") + "  " + m.statusView()
+}
+
+func (m tuiModel) taskView() string {
+	return promptFrameStyle.Width(max(20, m.mainWidth()-3)).Render(m.task.View())
+}
+
+func (m tuiModel) sidebarView() string {
+	settings := []string{
+		m.sidebarControl(focusPreset, "Preset", m.presetName()),
+		m.sidebarControl(focusSeed, "Seed", m.seed.View()),
+		m.sidebarControl(focusDepth, "Thinking", simulator.ThinkingDepths[m.depthIndex]),
+		m.sidebarControl(focusSpeed, "Speed", fmt.Sprintf("%gx", playbackSpeeds[m.speedIndex])),
+	}
+	session := []string{
+		sectionRule("SESSION"),
+		mutedStyle.Render("Modified Files"),
+		faintValue("None"),
+	}
+	if m.simulation != nil {
+		metrics := m.simulation.Metrics
+		session = []string{
+			sectionRule("RESULT"),
+			subtleStyle.Render(truncateText(m.simulation.EndingName, sidebarWidth-4)),
+			mutedStyle.Render(fmt.Sprintf("Confidence  %d%%", metrics.Confidence)),
+			mutedStyle.Render(fmt.Sprintf("Tokens      %d", metrics.TokensBurned)),
+			mutedStyle.Render(fmt.Sprintf("Files       %d", metrics.FilesActuallySet)),
+		}
+	}
+	content := []string{
+		diagonalStyle.Render("╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱"),
+		titleStyle.Render("glowing") + titleAccentStyle.Render("-agent"),
+		mutedStyle.Render("SIMULATION WORKBENCH"),
+		diagonalStyle.Render("╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱"),
+		"",
+		m.statusView() + "  " + subtleStyle.Render("New Session"),
+		mutedStyle.Render("./glowing-agent"),
+		"",
+		sectionRule("RUN SETTINGS"),
+	}
+	content = append(content, settings...)
+	content = append(content, "")
+	content = append(content, session...)
+	return sidebarStyle.Width(sidebarWidth - 3).Height(m.height).Render(lipgloss.JoinVertical(lipgloss.Left, content...))
+}
+
+func sectionRule(label string) string {
+	remaining := max(1, 24-len(label))
+	return sectionStyle.Render(label + " " + strings.Repeat("─", remaining))
+}
+
+func faintValue(value string) string {
+	return mutedStyle.Faint(true).Render(value)
+}
+
+func truncateText(value string, width int) string {
+	runes := []rune(value)
+	if len(runes) <= width {
+		return value
+	}
+	return string(runes[:max(1, width-1)]) + "…"
+}
+
+func (m tuiModel) presetName() string {
 	if m.presetIndex >= 0 {
-		preset = presets[m.presetIndex].Label
+		return simulator.Presets()[m.presetIndex].Label
+	}
+	return "custom"
+}
+
+func (m tuiModel) sidebarControl(target focusTarget, label, value string) string {
+	marker := mutedStyle.Render("◇")
+	text := subtleStyle.Render(label + "  " + value)
+	if m.state == editing && m.focus == target {
+		marker = titleAccentStyle.Render("◆")
+		text = titleStyle.Render(label + "  " + value)
+	}
+	return marker + " " + text
+}
+
+func (m tuiModel) settingsView() string {
+	preset := m.presetName()
+	labels := []string{"PRESET", "SEED", "THINKING", "SPEED"}
+	speed := fmt.Sprintf("%gx", playbackSpeeds[m.speedIndex])
+	if m.width < 80 {
+		labels = []string{"P", "S", "T", "×"}
+		speed = fmt.Sprintf("%g", playbackSpeeds[m.speedIndex])
 	}
 	controls := []string{
-		m.control(focusPreset, "PRESET", preset),
-		m.control(focusSeed, "SEED", m.seed.View()),
-		m.control(focusDepth, "THINKING", simulator.ThinkingDepths[m.depthIndex]),
-		m.control(focusSpeed, "SPEED", fmt.Sprintf("%gx", playbackSpeeds[m.speedIndex])),
+		m.control(focusPreset, labels[0], preset),
+		m.control(focusSeed, labels[1], m.seed.View()),
+		m.control(focusDepth, labels[2], simulator.ThinkingDepths[m.depthIndex]),
+		m.control(focusSpeed, labels[3], speed),
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, controls...)
 }
@@ -401,8 +591,26 @@ func (m tuiModel) control(target focusTarget, label, value string) string {
 
 func (m tuiModel) metricsView() string {
 	metrics := m.simulation.Metrics
-	return panelStyle.Width(m.width - 4).Render(fmt.Sprintf("ENDING %s   CONFIDENCE %d%%   TOKENS %d   MEETINGS %d   FILES CHANGED %d   SEED %d",
-		m.simulation.EndingName, metrics.Confidence, metrics.TokensBurned, metrics.MeetingsAvoided, metrics.FilesActuallySet, m.simulation.Seed))
+	values := fmt.Sprintf("ENDING %s   CONFIDENCE %d%%   TOKENS %d   FILES %d",
+		m.simulation.EndingName, metrics.Confidence, metrics.TokensBurned, metrics.FilesActuallySet)
+	if m.width < 80 {
+		values = fmt.Sprintf("ENDING %s · %d%% · %d TOKENS", m.simulation.EndingName, metrics.Confidence, metrics.TokensBurned)
+	}
+	return panelLabelStyle.Render("RESULT  ") + subtleStyle.Render(values)
+}
+
+func (m tuiModel) statusView() string {
+	status := m.statusText()
+	switch m.state {
+	case running:
+		return statusActiveStyle.Render(status)
+	case paused:
+		return statusPausedStyle.Render(status)
+	case completed:
+		return statusDoneStyle.Render(status)
+	default:
+		return statusReadyStyle.Render(status)
+	}
 }
 
 func (m tuiModel) statusText() string {
@@ -419,6 +627,12 @@ func (m tuiModel) statusText() string {
 }
 
 func (m tuiModel) helpText() string {
+	if m.mainWidth() < 80 {
+		if m.state == editing {
+			return "tab focus · enter run · ctrl+c quit"
+		}
+		return "space pause · r replay · n new · pg scroll · q quit"
+	}
 	if m.state == editing {
 		return "tab/shift+tab focus · shift+enter newline · enter run · ctrl+c quit"
 	}

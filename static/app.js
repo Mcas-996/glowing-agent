@@ -8,6 +8,8 @@ const task = $('#task');
 const seed = $('#seed');
 const thinkingDepth = $('#thinking-depth');
 const speed = $('#speed');
+const sessionStatus = $('.session-head strong');
+const sessionName = $('.session-intro strong');
 let simulation = null;
 let activePreset = null;
 
@@ -25,6 +27,12 @@ for (const [id, label, value] of presets) {
   button.dataset.id = id; $('#presets').append(button);
 }
 task.addEventListener('input', () => { activePreset = null; markPreset(); });
+task.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    run.click();
+  }
+});
 function markPreset() { document.querySelectorAll('.preset').forEach(b => b.classList.toggle('selected', b.dataset.id === activePreset)); }
 
 run.addEventListener('click', async () => {
@@ -32,17 +40,22 @@ run.addEventListener('click', async () => {
   if (!text) { task.focus(); return; }
   const requestedSeed = seed.value.trim() ? Number(seed.value.trim()) : null;
   if (!Number.isSafeInteger(requestedSeed) && requestedSeed !== null) { seed.setCustomValidity('Use a whole-number seed.'); seed.reportValidity(); return; }
-  seed.setCustomValidity(''); run.disabled = true; run.firstChild.textContent = 'Consulting the void ';
+  seed.setCustomValidity(''); run.disabled = true; run.firstChild.textContent = 'Working ';
+  sessionStatus.textContent = 'RUNNING'; sessionStatus.dataset.state = 'running'; sessionName.textContent = 'Agent Session';
   try {
     const data = generateSimulation(text, requestedSeed, thinkingDepth.value, Date.now());
     simulation = data; seed.value = data.seed; await play(data);
-  } catch (error) { terminal.innerHTML = `<div class="event reveal">Simulation failed: ${escapeHTML(error.message)}</div>`; }
-  finally { run.disabled = false; run.firstChild.textContent = 'Run simulation '; replay.disabled = !simulation; }
+  } catch (error) {
+    terminal.innerHTML = `<div class="event reveal">Simulation failed: ${escapeHTML(error.message)}</div>`;
+    sessionStatus.textContent = 'ERROR'; sessionStatus.dataset.state = 'error';
+  }
+  finally { run.disabled = false; run.firstChild.textContent = 'Run '; replay.disabled = !simulation; }
 });
 
 replay.addEventListener('click', () => simulation && play(simulation));
 
 async function play(data) {
+  sessionStatus.textContent = 'RUNNING'; sessionStatus.dataset.state = 'running';
   replay.disabled = true; terminal.innerHTML = ''; $('#result').classList.add('hidden');
   for (const event of data.events) {
     appendEvent(event);
@@ -53,6 +66,7 @@ async function play(data) {
   $('#tokens').textContent = data.metrics.tokensBurned.toLocaleString();
   $('#files').textContent = data.metrics.filesActuallySet;
   $('#result').classList.remove('hidden'); replay.disabled = false;
+  sessionStatus.textContent = 'COMPLETE'; sessionStatus.dataset.state = 'complete'; sessionName.textContent = data.endingName;
 }
 
 function appendEvent(event) {

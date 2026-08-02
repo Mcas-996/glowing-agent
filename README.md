@@ -14,7 +14,8 @@ go run .
 Enter a task, configure the simulation, then watch the agent find the root
 cause of civilisation instead of your bug. The workbench includes a multi-line
 task editor, preset selector, reproducible seed, thinking depth, replay speed,
-scrolling log, and a result summary.
+scrolling log, and a responsive session-details sidebar. On narrower terminals,
+the sidebar settings fold back into the main workbench.
 
 | Key | Action |
 | --- | --- |
@@ -28,7 +29,7 @@ scrolling log, and a result summary.
 | `PgUp` / `PgDn` | Scroll the event log |
 | `q` / `Ctrl+C` | Quit (`q` works outside text fields) |
 
-The TUI needs at least a 60 × 16 terminal. It uses the terminal's alternate
+The TUI needs at least a 60 × 24 terminal. It uses the terminal's alternate
 screen and restores the original screen when it exits.
 
 ## JSON automation
@@ -54,9 +55,16 @@ to GitHub Pages when changes reach `main`. In the repository, enable
 **Settings → Pages → Source: GitHub Actions** once; it will be available at
 <https://mcas-996.github.io/glowing-agent/>.
 
+## Design inspiration
+
+The interface is visually inspired by Charmbracelet's
+[Crush](https://github.com/charmbracelet/crush). Its terminal workbench layout
+is an independent implementation: no Crush source code, logo, wordmark,
+screenshots, or other brand assets are included in this project.
+
 ## Development
 
 ```powershell
 go test ./...
-node --test test/simulator.test.mjs
+node --test
 ```
